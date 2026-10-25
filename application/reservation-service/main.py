@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Aether Tower OS – Reservation Service",
     description="REST API rezerwacji stanowisk pracy w Aether Tower (100 pięter x 150 biurek).",
-    version="1.0.0",
+    version="1.0.1",
     lifespan=lifespan,
 )
 app.add_middleware(
@@ -193,6 +193,11 @@ async def ready(session: AsyncSession = Depends(get_session)) -> HealthOut:
     if result.database == "down":
         raise HTTPException(status_code=503, detail=result.model_dump())
     return result
+
+
+@app.get("/api/version", tags=["meta"])
+async def version_info() -> dict[str, str]:
+    return {"version": "1.0.1", "status": "operational"}
 
 
 @app.get("/api/health", response_model=HealthOut, tags=["ops"], include_in_schema=False)
