@@ -1,0 +1,39 @@
+# Punkt wejścia: `kubectl apply -k application/k8s/`
+#
+# Nazwa rejestru ECR (REGISTRY) i tag obrazów (latest) są podmieniane przez buildspec.yml
+# (sed na kopii repozytorium w CodeBuild) na adres konta AWS i skrót commita, np.
+#   123456789012.dkr.ecr.eu-central-1.amazonaws.com/aether-tower/frontend:3b04ead
+# Dzięki unikalnemu tagowi każdy commit powoduje rolling update (zmiana szablonu poda).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aether-tower
+
+resources:
+  - namespace.yaml
+  - storageclass.yaml
+  - postgres.yaml
+  - user-notification-service.yaml
+  - reservation-service.yaml
+  - hpa.yaml
+  - frontend.yaml
+  - seed-job.yaml
+
+# aether-config w pliku postgres.yaml jest zwykłym zasobem; Secret `db-credentials`
+# i ConfigMap `seed-script` tworzy buildspec.yml (patrz komentarze tam).
+
+images:
+  - name: aether-tower/frontend
+    newName: REGISTRY/aether-tower/frontend
+    newTag: latest
+  - name: aether-tower/reservation-service
+    newName: REGISTRY/aether-tower/reservation-service
+    newTag: latest
+  - name: aether-tower/user-notification-service
+    newName: REGISTRY/aether-tower/user-notification-service
+    newTag: latest
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: aether-tower-os
+    includeSelectors: false

@@ -1,0 +1,88 @@
+# AWS CodeBuild – build obrazów, push do ECR i rolling update na EKS.
+# Zmienne AWS_REGION, CLUSTER_NAME, ECR_REGISTRY i PROJECT_NAME ustawia Terraform
+# (infrastructure/codebuild.tf, blok environment_variable).
+version: 0.2
+
+env:
+  variables:
+    K8S_NAMESPACE: aether-tower
+    KUBECTL_VERSION: v1.30.6   # zgodna z wersją klastra (eks.tf: version = "1.30")
+
+phases:
+  install:
+    commands:
+      - |
+        curl -fsSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+        chmod +x /usr/local/bin/kubectl
+        kubectl version --client
+
+  pre_build:
+    commands:
+      - |
+        # Tag obrazów = skrót commita; każdy commit daje unikalny tag, więc zmienia szablon poda
+        # i wywołuje rolling update (tag "latest" nie wywołałby żadnej zmiany).
+        # COMMIT_ID przekazuje CodePipeline (#{SourceVariables.CommitId} w pipeline.tf);
+        # przy ręcznym uruchomieniu samego CodeBuild używamy numeru buildu.
+        export IMAGE_TAG="$(echo "${COMMIT_ID:-build-${CODEBUILD_BUILD_NUMBER}}" | cut -c1-7)"
+        echo "IMAGE_TAG=${IMAGE_TAG}" > /tmp/image_tag.env
+        echo "Wersja obrazów: ${IMAGE_TAG}"
+      - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+  build:
+    commands:
+      - |
+        . /tmp/image_tag.env
+        for svc in frontend reservation-service user-notification-service; do
+          echo "=== Budowanie ${svc} ==="
+          docker build \
+            -t "${ECR_REGISTRY}/${PROJECT_NAME}/${svc}:${IMAGE_TAG}" \
+            -t "${ECR_REGISTRY}/${PROJECT_NAME}/${svc}:latest" \
+            "application/${svc}"
+        done
+
+  post_build:
+    commands:
+      - |
+        . /tmp/image_tag.env
+        for svc in frontend reservation-service user-notification-service; do
+          echo "=== Wypychanie ${svc} do ECR ==="
+          docker push "${ECR_REGISTRY}/${PROJECT_NAME}/${svc}:${IMAGE_TAG}"
+          docker push "${ECR_REGISTRY}/${PROJECT_NAME}/${svc}:latest"
+        done
+      - aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
+      - |
+        . /tmp/image_tag.env
+        set -e
+
+        # 1) Namespace musi istnieć przed utworzeniem Secret i ConfigMap.
+        kubectl apply -f application/k8s/namespace.yaml
+
+        # 2) Hasło bazy: generowane losowo TYLKO przy pierwszym wdrożeniu i nigdzie niezapisywane w repo.
+        #    Późniejsze deploye go nie zmieniają (inaczej nie zgadzałoby się z hasłem zapisanym w bazie na dysku EBS).
+        if ! kubectl -n "$K8S_NAMESPACE" get secret db-credentials >/dev/null 2>&1; then
+          kubectl -n "$K8S_NAMESPACE" create secret generic db-credentials \
+            --from-literal=password="$(openssl rand -hex 16)"
+        fi
+
+        # 3) Skrypt zasilający bazę trafia do ConfigMap montowanej w Jobie seed (jak ./scripts w docker-compose).
+        kubectl -n "$K8S_NAMESPACE" create configmap seed-script \
+          --from-file=seed.py=scripts/seed.py \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+        # 4) Pola szablonu Joba są niezmienne – stary Job trzeba usunąć, by zastosować nowy obraz.
+        kubectl -n "$K8S_NAMESPACE" delete job seed --ignore-not-found
+
+        # 5) Podmiana REGISTRY i tagu w kustomization.yaml (zmiana tylko w kopii w CodeBuild, nie w repo).
+        sed -i "s|REGISTRY/|${ECR_REGISTRY}/|g; s|newTag: latest|newTag: ${IMAGE_TAG}|g" application/k8s/kustomization.yaml
+        kubectl apply -k application/k8s
+
+        # 6) Czekamy na zakończenie rolling update. Brak sukcesu = build kończy się błędem,
+        #    a Kubernetes zostawia działające stare pody (maxUnavailable: 0).
+        kubectl -n "$K8S_NAMESPACE" rollout status statefulset/postgres --timeout=600s
+        kubectl -n "$K8S_NAMESPACE" rollout status deployment/user-notification-service --timeout=300s
+        kubectl -n "$K8S_NAMESPACE" rollout status deployment/reservation-service --timeout=300s
+        kubectl -n "$K8S_NAMESPACE" rollout status deployment/frontend --timeout=300s
+        kubectl -n "$K8S_NAMESPACE" wait --for=condition=complete job/seed --timeout=600s
+
+        echo "=== Stan klastra po wdrożeniu ==="
+        kubectl -n "$K8S_NAMESPACE" get pods,svc,hpa -o wide

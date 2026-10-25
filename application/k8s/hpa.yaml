@@ -1,0 +1,33 @@
+# Autoskalowanie reservation-service (test obciążeniowy – Rozdział 5).
+# Wymaga metrics-server (dodatek EKS dodany w infrastructure/eks.tf).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: reservation-service
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: reservation-service
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50     # względem resources.requests.cpu (100m)
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0  # reaguj od razu na wzrost ruchu
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 120  # krótsze niż domyślne 300 s, by szybciej zaobserwować spadek
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60

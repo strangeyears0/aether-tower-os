@@ -35,6 +35,15 @@ resource "aws_eks_cluster" "main" {
     endpoint_private_access = true
   }
 
+  # Access Entries: pozwalają nadać rolom IAM (np. CodeBuild) uprawnienia w klastrze
+  # przez API AWS, bez ręcznej edycji ConfigMap aws-auth.
+  # bootstrap_cluster_creator_admin_permissions = osoba wykonująca `terraform apply`
+  # zostaje administratorem klastra (potrzebne do kubectl z laptopa).
+  access_config {
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
+  }
+
   depends_on = [
     aws_iam_role_policy_attachment.cluster_policy
   ]
@@ -153,4 +162,13 @@ resource "aws_eks_addon" "ebs_csi" {
     aws_eks_node_group.main,
     aws_iam_role_policy_attachment.ebs_csi
   ]
+}
+
+# Dodatek EKS: metrics-server – dostarcza metryki CPU/RAM podów (`kubectl top`)
+# i jest warunkiem działania Horizontal Pod Autoscalera (application/k8s/hpa.yaml).
+resource "aws_eks_addon" "metrics_server" {
+  cluster_name = aws_eks_cluster.main.name
+  addon_name   = "metrics-server"
+
+  depends_on = [aws_eks_node_group.main]
 }

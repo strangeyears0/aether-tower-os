@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aether-tower
+  labels:
+    app.kubernetes.io/part-of: aether-tower-os

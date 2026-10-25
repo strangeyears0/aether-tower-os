@@ -1,0 +1,19 @@
+# Klasa dysków EBS gp3 dla bazy danych.
+#  * WaitForFirstConsumer – wolumen powstaje w tej samej strefie dostępności (AZ),
+#    w której Kubernetes zaplanuje pod (EBS jest przypięty do jednej AZ).
+#  * reclaimPolicy: Delete – `kubectl delete` / usunięcie namespace'u kasuje też dysk EBS,
+#    dzięki czemu nie zostają osierocone (płatne) wolumeny po eksperymentach.
+#    Dla środowiska produkcyjnego należałoby ustawić Retain.
+#  * allowVolumeExpansion – pozwala powiększyć dysk bez odtwarzania PVC.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  fsType: ext4
+  encrypted: "true"
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+allowVolumeExpansion: true

@@ -3,34 +3,27 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Aether Tower OS — Command Console NOC | Rezerwacja stanowisk</title>
-  <meta name="description" content="Aether Tower OS: konsola NOC do rezerwacji 15 000 stanowisk pracy na 100 piętrach wieżowca biurowego Aether Tower.">
-  <meta name="theme-color" content="#0A0E16">
+  <title>Aether Tower — rezerwacja stanowisk pracy</title>
+  <meta name="description" content="Aether Tower OS: rezerwacja 15 000 stanowisk pracy na 100 piętrach wieżowca biurowego Aether Tower.">
+  <meta name="theme-color" content="#F2EEE5">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Schibsted+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app" id="app">
 
-    <!-- ===== TOP BAR ===== -->
+    <!-- ===== MASTHEAD ===== -->
     <header class="topbar">
       <div class="brand">
-        <svg class="brand__logo" viewBox="0 0 64 64" aria-hidden="true">
-          <defs>
-            <linearGradient id="logo-grad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#00E5FF"/>
-              <stop offset="1" stop-color="#00E676"/>
-            </linearGradient>
-          </defs>
-          <rect x="2" y="2" width="60" height="60" rx="16" fill="#0F131C" stroke="#1E293B" stroke-width="2"/>
-          <path d="M32 11 16 53h7.5l3.2-9h10.6l3.2 9H48L32 11Zm0 16.5L36 38.5h-8L32 27.5Z" fill="url(#logo-grad)"/>
+        <svg class="brand__logo" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M4 28h24M8 28V14h16v14M12 14V8h8v6M16 8V3" />
         </svg>
         <div class="brand__text">
-          <h1 class="brand__title">AETHER TOWER <span>OS</span></h1>
-          <span class="brand__sub mono">COMMAND CONSOLE // NOC</span>
+          <h1 class="brand__title">Aether Tower <span>OS</span></h1>
+          <span class="brand__sub">Rezerwacja stanowisk · 100 pięter</span>
         </div>
       </div>
 
@@ -38,33 +31,33 @@
 
       <div class="topbar__controls">
         <label class="field" for="date-input">
-          <span class="field__label mono">DATA</span>
+          <span class="field__label">Data</span>
           <input type="date" id="date-input" class="field__input mono">
         </label>
         <label class="field" for="user-select">
-          <span class="field__label mono">OPERATOR</span>
-          <select id="user-select" class="field__input mono" aria-label="Operator"></select>
+          <span class="field__label">Pracownik</span>
+          <select id="user-select" class="field__input" aria-label="Pracownik"></select>
         </label>
         <div class="clock" aria-label="Aktualny czas">
           <span class="clock__time mono" id="clock-time">--:--:--</span>
-          <span class="clock__date mono" id="clock-date">----</span>
+          <span class="clock__date" id="clock-date">----</span>
         </div>
         <div class="link" id="link" title="Połączenie z reservation-service">
           <i class="led" aria-hidden="true"></i>
-          <span class="mono" id="link-label">LINK</span>
+          <span id="link-label">Łączenie</span>
         </div>
       </div>
     </header>
 
-    <!-- ===== 3-PANEL LAYOUT ===== -->
+    <!-- ===== UKŁAD: indeks pięter | plan | szczegóły ===== -->
     <main class="layout" id="layout">
 
-      <!-- Panel lewy: selektor pięter -->
+      <!-- Indeks pięter -->
       <aside class="panel panel--floors" aria-label="Selektor pięter">
         <div class="panel__head">
           <div>
-            <h2 class="panel__title">PIĘTRA</h2>
-            <p class="panel__sub mono" id="tower-stat">WIEŻA · ładowanie…</p>
+            <h2 class="panel__title">Piętra</h2>
+            <p class="panel__sub" id="tower-stat">Wieża · ładowanie…</p>
           </div>
           <span class="chip mono" id="floor-count">100</span>
         </div>
@@ -73,48 +66,48 @@
 
         <div class="search">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input id="floor-search" class="mono" type="search" inputmode="numeric" placeholder="Skocz do piętra (1–100)" autocomplete="off" aria-label="Szukaj piętra">
+          <input id="floor-search" type="search" inputmode="numeric" placeholder="Przejdź do piętra (1–100)" autocomplete="off" aria-label="Szukaj piętra">
         </div>
 
         <ul class="floor-list" id="floor-list" role="listbox" aria-label="Lista pięter"></ul>
 
         <div class="mine">
           <div class="mine__head">
-            <span class="eyebrow mono">MOJE REZERWACJE</span>
-            <span class="chip chip--cyan mono" id="mine-count">0</span>
+            <span class="eyebrow">Moje rezerwacje</span>
+            <span class="chip chip--accent mono" id="mine-count">0</span>
           </div>
           <ul class="mine__list" id="mine-list"></ul>
         </div>
       </aside>
 
-      <!-- Panel centralny: mapa piętra -->
-      <section class="panel panel--map" aria-label="Mapa piętra">
+      <!-- Plan piętra -->
+      <section class="panel panel--map" aria-label="Plan piętra">
         <div class="map-head">
           <div class="map-head__title">
-            <span class="eyebrow mono" id="map-eyebrow">FLOOR MAP</span>
+            <span class="eyebrow" id="map-eyebrow">Plan piętra</span>
             <h2 id="map-title">Wybierz piętro</h2>
           </div>
           <div class="stats" id="map-stats"></div>
         </div>
 
-        <div class="legend mono" aria-label="Legenda">
-          <span><i class="dot dot--free"></i>WOLNE</span>
-          <span><i class="dot dot--occupied"></i>ZAJĘTE</span>
-          <span><i class="dot dot--maintenance"></i>KONSERWACJA / W TOKU</span>
-          <span><i class="dot dot--selected"></i>ZAZNACZONE</span>
-          <span><i class="dot dot--mine"></i>MOJE</span>
+        <div class="legend" aria-label="Legenda">
+          <span><i class="dot dot--free"></i>Wolne</span>
+          <span><i class="dot dot--occupied"></i>Zajęte</span>
+          <span><i class="dot dot--maintenance"></i>Konserwacja</span>
+          <span><i class="dot dot--selected"></i>Zaznaczone</span>
+          <span><i class="dot dot--mine"></i>Moje</span>
         </div>
 
         <div class="map-body" id="map-body"></div>
       </section>
 
-      <!-- Panel prawy: szczegóły biurka (drawer) -->
+      <!-- Szczegóły biurka -->
       <div class="drawer-wrap" id="drawer-wrap">
         <aside class="panel drawer" id="drawer" aria-label="Szczegóły stanowiska" aria-hidden="true">
           <div class="panel__head">
             <div>
-              <span class="eyebrow mono">DESK TELEMETRY</span>
-              <h2 class="panel__title">STANOWISKO</h2>
+              <span class="eyebrow">Karta stanowiska</span>
+              <h2 class="panel__title">Stanowisko</h2>
             </div>
             <button type="button" class="icon-btn" id="drawer-close" aria-label="Zamknij panel szczegółów">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>

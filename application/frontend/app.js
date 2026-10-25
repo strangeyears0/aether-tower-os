@@ -1,5 +1,5 @@
 /* ==========================================================================
-   AETHER TOWER OS — Command Console NOC · frontend (vanilla JS)
+   AETHER TOWER OS — frontend (vanilla JS)
    ========================================================================== */
 (() => {
   'use strict';
@@ -24,11 +24,11 @@
   ];
 
   const SPEC_ROWS = [
-    ['monitors', 'MONITORY', 'monitor'],
-    ['chair', 'FOTEL', 'chair'],
-    ['desk', 'BIURKO', 'desk'],
-    ['computer', 'STACJA ROBOCZA', 'cpu'],
-    ['network', 'SIEĆ', 'network'],
+    ['monitors', 'Monitory', 'monitor'],
+    ['chair', 'Fotel', 'chair'],
+    ['desk', 'Biurko', 'desk'],
+    ['computer', 'Stacja robocza', 'cpu'],
+    ['network', 'Sieć', 'network'],
   ];
 
   const ICONS = {
@@ -38,7 +38,7 @@
     cpu: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>',
     network: '<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v5M12 12l-6 5M12 12l6 5"/></svg>',
     map: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>',
-    alert: '<svg viewBox="0 0 24 24" fill="none" stroke="#FF1744" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>',
+    alert: '<svg viewBox="0 0 24 24" fill="none" stroke="#D9461F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg>',
   };
 
   // ------------------------------------------------------------------- state
@@ -143,13 +143,13 @@
   function tickClock() {
     const now = new Date();
     $('#clock-time').textContent = now.toLocaleTimeString('pl-PL', { hour12: false });
-    $('#clock-date').textContent = now.toLocaleDateString('pl-PL', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }).toUpperCase();
+    $('#clock-date').textContent = now.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
   }
 
   function setLink(up) {
     const link = $('#link');
     link.dataset.state = up ? 'up' : 'down';
-    $('#link-label').textContent = up ? 'LINK OK' : 'OFFLINE';
+    $('#link-label').textContent = up ? 'Połączono' : 'Brak połączenia';
   }
 
   async function checkHealth() {
@@ -167,7 +167,7 @@
     const total = state.floors.reduce((s, f) => s + f.total, 0);
     const reserved = state.floors.reduce((s, f) => s + f.reserved, 0);
     const pct = total ? (reserved / total) * 100 : 0;
-    $('#tower-stat').textContent = `WIEŻA · ${reserved.toLocaleString('pl-PL')} / ${total.toLocaleString('pl-PL')} · ${pct.toFixed(1)}%`;
+    $('#tower-stat').textContent = `Wieża · ${reserved.toLocaleString('pl-PL')} / ${total.toLocaleString('pl-PL')} · ${pct.toFixed(1)}%`;
     $('#tower-bar-fill').style.width = `${Math.min(100, pct * 4)}%`; // skala x4 – czytelność przy niskiej zajętości
   }
 
@@ -239,22 +239,22 @@
     const title = $('#map-title');
     const stats = $('#map-stats');
     if (!state.floorId) {
-      eyebrow.textContent = 'FLOOR MAP';
+      eyebrow.textContent = 'Plan piętra';
       title.textContent = 'Wybierz piętro';
       stats.replaceChildren();
       return;
     }
-    eyebrow.textContent = `FL-${pad(state.floorId)} · ${fmtDate(state.date, { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase()}`;
-    title.replaceChildren(`Piętro ${state.floorId}`, el('span', { class: 'mono' }, `150 STANOWISK`));
+    eyebrow.textContent = `FL-${pad(state.floorId)} · ${fmtDate(state.date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+    title.replaceChildren(`Piętro ${state.floorId}`, el('span', { class: 'mono' }, '150 stanowisk'));
     if (!data) { stats.replaceChildren(); return; }
     const s = data.summary;
     const stat = (cls, label, value) => el('div', { class: `stat ${cls}` },
       el('span', { class: 'stat__label mono' }, label), el('span', { class: 'stat__value mono' }, value));
     stats.replaceChildren(
-      stat('stat--free', 'WOLNE', s.available),
-      stat('stat--occupied', 'ZAJĘTE', s.reserved),
-      stat('stat--maintenance', 'KONSERW.', s.maintenance),
-      stat('stat--pct', 'ZAJĘTOŚĆ', `${Math.round(s.occupancy_pct)}%`));
+      stat('stat--free', 'Wolne', s.available),
+      stat('stat--occupied', 'Zajęte', s.reserved),
+      stat('stat--maintenance', 'Konserwacja', s.maintenance),
+      stat('stat--pct', 'Zajętość', `${Math.round(s.occupancy_pct)}%`));
   }
 
   function mapState(kind, title, text, action) {
@@ -273,7 +273,7 @@
     if (!data) {
       if (state.floorError) {
         body.replaceChildren(mapState('error', 'Nie udało się pobrać mapy piętra', state.floorError,
-          el('button', { type: 'button', class: 'btn-link mono', onclick: () => loadFloor() }, 'PONÓW')));
+          el('button', { type: 'button', class: 'btn-link mono', onclick: () => loadFloor() }, 'Ponów')));
       } else {
         body.replaceChildren(el('div', { class: 'skeleton-zones' }, ...ZONES.map(() => el('div', { class: 'skeleton-zone' }))));
       }
@@ -287,8 +287,8 @@
       const free = desks.filter((d) => d.status === 'free').length;
       return el('section', { class: 'zone', 'aria-label': `Strefa ${z.key}` },
         el('div', { class: 'zone__head' },
-          el('div', { class: 'zone__name' }, el('b', { class: 'mono' }, z.key.toUpperCase()), el('span', {}, z.sub)),
-          el('div', { class: 'zone__free mono' }, el('b', {}, free), ` / ${desks.length} WOLNE`)),
+          el('div', { class: 'zone__name' }, el('b', {}, z.key), el('span', {}, z.sub)),
+          el('div', { class: 'zone__free' }, el('b', {}, free), ` / ${desks.length} wolnych`)),
         el('div', { class: 'zone__grid' }, ...desks.map((d) => deskButton(d, me, index++))));
     });
 
@@ -313,7 +313,7 @@
       'data-desk': d.id,
       'aria-pressed': String(state.selectedId === d.id),
       'aria-label': `Biurko ${d.desk_number}, strefa ${d.zone}, ${label}`,
-      title: `${d.coordinate} · ${label.toUpperCase()}`,
+      title: `${d.coordinate} · ${label}`,
       vars: { '--i': i },
       onclick: () => selectDesk(d.id),
     }, pad(d.desk_number, 3));
@@ -327,7 +327,7 @@
 
   function kv(label, value, wide = false) {
     return el('div', { class: `kv__item${wide ? ' kv__item--wide' : ''}` },
-      el('span', { class: 'kv__label mono' }, label), el('span', { class: 'kv__value mono' }, value));
+      el('span', { class: 'kv__label' }, label), el('span', { class: 'kv__value' }, value));
   }
 
   function renderDrawer() {
@@ -345,56 +345,56 @@
     const myOnDate = myReservationOn(state.date);
     const pending = state.pendingId === d.id;
     const badgeKind = pending ? 'pending' : d.status;
-    const badgeText = pending ? 'REZERWACJA W TOKU'
-      : { free: 'WOLNE', occupied: mine ? 'ZAJĘTE · TWOJA REZERWACJA' : 'ZAJĘTE', maintenance: 'KONSERWACJA' }[d.status];
+    const badgeText = pending ? 'Rezerwacja w toku'
+      : { free: 'Wolne', occupied: mine ? 'Zajęte · Twoja rezerwacja' : 'Zajęte', maintenance: 'Konserwacja' }[d.status];
 
     const specs = SPEC_ROWS.filter(([key]) => eq[key]).map(([key, label, ic]) =>
       el('div', { class: 'spec' }, icon(ic, 'spec__icon'),
-        el('div', {}, el('span', { class: 'spec__label mono' }, label), el('span', { class: 'spec__value' }, eq[key]))));
+        el('div', {}, el('span', { class: 'spec__label' }, label), el('span', { class: 'spec__value' }, eq[key]))));
 
     const zoneMeta = ZONES.find((z) => z.key === d.zone);
-    const typeLabel = d.type.replaceAll('_', ' ').toUpperCase();
+    const typeLabel = d.type.replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase());
 
     // przycisk akcji
     let action;
     let hint = null;
     if (pending) {
-      action = el('button', { type: 'button', class: 'btn btn--primary btn--busy', disabled: true }, 'PRZETWARZANIE…');
+      action = el('button', { type: 'button', class: 'btn btn--primary btn--busy', disabled: true }, 'Przetwarzanie…');
     } else if (d.status === 'free') {
       if (myOnDate) {
-        action = el('button', { type: 'button', class: 'btn btn--primary', disabled: true }, 'MASZ JUŻ REZERWACJĘ');
+        action = el('button', { type: 'button', class: 'btn btn--primary', disabled: true }, 'Masz już rezerwację');
         hint = `Twoja rezerwacja na ${fmtDate(state.date)}: ${myOnDate.resource_id}. Anuluj ją, aby wybrać inne biurko.`;
       } else {
-        action = el('button', { type: 'button', class: 'btn btn--primary', id: 'reserve-btn', onclick: () => reserve(d) }, 'ZAREZERWUJ TO BIURKO');
+        action = el('button', { type: 'button', class: 'btn btn--primary', id: 'reserve-btn', onclick: () => reserve(d) }, 'Zarezerwuj to biurko');
         hint = `Rezerwacja na dzień ${fmtDate(state.date, { day: '2-digit', month: 'long', year: 'numeric' })} jako ${currentUser()?.full_name ?? state.userId}.`;
       }
     } else if (mine) {
-      action = el('button', { type: 'button', class: 'btn btn--danger', id: 'cancel-btn', onclick: () => cancel(d) }, 'ANULUJ MOJĄ REZERWACJĘ');
+      action = el('button', { type: 'button', class: 'btn btn--danger', id: 'cancel-btn', onclick: () => cancel(d) }, 'Anuluj moją rezerwację');
     } else if (d.status === 'occupied') {
-      action = el('button', { type: 'button', class: 'btn btn--primary', disabled: true }, 'STANOWISKO ZAJĘTE');
+      action = el('button', { type: 'button', class: 'btn btn--primary', disabled: true }, 'Stanowisko zajęte');
       hint = d.reserved_by ? `Zarezerwowane przez: ${d.reserved_by}` : null;
     } else {
-      action = el('button', { type: 'button', class: 'btn btn--primary', disabled: true }, 'KONSERWACJA — NIEDOSTĘPNE');
+      action = el('button', { type: 'button', class: 'btn btn--primary', disabled: true }, 'Konserwacja — niedostępne');
       hint = 'Stanowisko jest chwilowo wyłączone z użytku przez zespół Facility.';
     }
 
     body.replaceChildren(
       el('div', { class: 'coord' },
-        el('span', { class: 'eyebrow mono' }, 'KOORDYNATY'),
-        el('span', { class: 'coord__value mono' }, d.coordinate),
-        el('span', { class: 'coord__id mono' }, `ID ZASOBU · ${d.id}`)),
-      el('span', { class: `badge badge--${badgeKind} mono` }, el('i'), badgeText),
+        el('span', { class: 'eyebrow' }, 'Koordynaty'),
+        el('span', { class: 'coord__value' }, d.coordinate),
+        el('span', { class: 'coord__id mono' }, `ID zasobu · ${d.id}`)),
+      el('span', { class: `badge badge--${badgeKind}` }, el('i'), badgeText),
       el('div', { class: 'kv' },
-        kv('PIĘTRO', `FL-${pad(d.floor_id)}`),
-        kv('STREFA', d.zone.toUpperCase()),
-        kv('PROFIL', zoneMeta ? zoneMeta.sub : '—', true),
-        kv('TYP', typeLabel),
-        kv('DATA', fmtDate(state.date, { day: '2-digit', month: '2-digit', year: 'numeric' }))),
+        kv('Piętro', `FL-${pad(d.floor_id)}`),
+        kv('Strefa', d.zone),
+        kv('Profil', zoneMeta ? zoneMeta.sub : '—', true),
+        kv('Typ', typeLabel),
+        kv('Data', fmtDate(state.date, { day: '2-digit', month: '2-digit', year: 'numeric' }))),
       el('div', {},
-        el('span', { class: 'eyebrow mono section-title' }, 'SPECYFIKACJA SPRZĘTOWA'),
+        el('span', { class: 'eyebrow section-title' }, 'Specyfikacja sprzętowa'),
         el('div', { class: 'specs' }, ...specs)),
       Array.isArray(eq.extras) && eq.extras.length
-        ? el('div', {}, el('span', { class: 'eyebrow mono section-title' }, 'WYPOSAŻENIE DODATKOWE'),
+        ? el('div', {}, el('span', { class: 'eyebrow section-title' }, 'Wyposażenie dodatkowe'),
           el('div', { class: 'tags' }, ...eq.extras.map((x) => el('span', { class: 'tag' }, x))))
         : null,
       el('div', { class: 'drawer__actions' }, action, hint && el('p', { class: 'hint' }, hint)));
@@ -487,7 +487,7 @@
         state.floorError = err.message;
         renderMap();
       } else if (!silent) {
-        toast('warn', 'ODŚWIEŻANIE NIEUDANE', err.message);
+        toast('warn', 'Odświeżanie nieudane', err.message);
       }
     }
   }
@@ -499,7 +499,7 @@
       : state.users.some((u) => u.id === DEFAULT_USER) ? DEFAULT_USER
         : state.users[state.users.length - 1]?.id ?? null;
     const select = $('#user-select');
-    select.replaceChildren(...state.users.map((u) => el('option', { value: u.id }, `${u.id} · ${u.full_name}`)));
+    select.replaceChildren(...state.users.map((u) => el('option', { value: u.id }, `${u.full_name} (${u.id})`)));
     select.value = state.userId;
   }
 
@@ -528,9 +528,9 @@
         method: 'POST',
         body: { user_id: state.userId, resource_id: desk.id, reservation_date: state.date },
       });
-      toast('success', 'REZERWACJA POTWIERDZONA', `${desk.coordinate} · ${fmtDate(state.date)}`);
+      toast('success', 'Rezerwacja potwierdzona', `${desk.coordinate} · ${fmtDate(state.date)}`);
     } catch (err) {
-      toast(err.status === 409 ? 'warn' : 'error', err.status === 409 ? 'KONFLIKT REZERWACJI' : 'BŁĄD REZERWACJI', err.message);
+      toast(err.status === 409 ? 'warn' : 'error', err.status === 409 ? 'Konflikt rezerwacji' : 'Błąd rezerwacji', err.message);
     } finally {
       state.pendingId = null;
       state.busy = false;
@@ -546,9 +546,9 @@
     renderDrawer();
     try {
       await api(`/reservations/${desk.reservation_id}?user_id=${encodeURIComponent(state.userId)}`, { method: 'DELETE' });
-      toast('success', 'REZERWACJA ANULOWANA', `${desk.coordinate} · ${fmtDate(state.date)}`);
+      toast('success', 'Rezerwacja anulowana', `${desk.coordinate} · ${fmtDate(state.date)}`);
     } catch (err) {
-      toast('error', 'NIE UDAŁO SIĘ ANULOWAĆ', err.message);
+      toast('error', 'Nie udało się anulować', err.message);
     } finally {
       state.pendingId = null;
       state.busy = false;
@@ -561,7 +561,7 @@
     state.date = date;
     $('#date-input').value = date;
     state.floorCache.clear();
-    await loadFloors().catch((e) => toast('error', 'BŁĄD DANYCH', e.message));
+    await loadFloors().catch((e) => toast('error', 'Błąd danych', e.message));
     if (state.floorId) await loadFloor();
   }
 
@@ -572,7 +572,7 @@
     $('#user-select').addEventListener('change', async (e) => {
       state.userId = e.target.value;
       storage.set('aether.user', state.userId);
-      await loadMyReservations().catch((err) => toast('error', 'BŁĄD DANYCH', err.message));
+      await loadMyReservations().catch((err) => toast('error', 'Błąd danych', err.message));
       renderMap();
       renderDrawer();
     });
@@ -613,8 +613,8 @@
     } catch (err) {
       setLink(false);
       $('#map-body').replaceChildren(mapState('error', 'Brak połączenia z reservation-service', err.message,
-        el('button', { type: 'button', class: 'btn-link mono', onclick: init }, 'PONÓW')));
-      $('#tower-stat').textContent = 'WIEŻA · BRAK DANYCH';
+        el('button', { type: 'button', class: 'btn-link mono', onclick: init }, 'Ponów')));
+      $('#tower-stat').textContent = 'Wieża · brak danych';
     }
   }
 

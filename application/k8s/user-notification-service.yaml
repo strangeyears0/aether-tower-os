@@ -1,0 +1,66 @@
+# user-notification-service przechowuje historię powiadomień W PAMIĘCI procesu
+# (HISTORY_SIZE), dlatego zostaje na 1 replice – kilka replik rozdzieliłoby historię.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-notification-service
+  labels:
+    app: user-notification-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-notification-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: user-notification-service
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: user-notification-service
+          image: aether-tower/user-notification-service
+          ports:
+            - name: http
+              containerPort: 8001
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { cpu: 250m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          startupProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 15
+          lifecycle:
+            preStop:
+              exec: { command: ["sleep", "5"] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-notification-service
+  labels:
+    app: user-notification-service
+spec:
+  selector:
+    app: user-notification-service
+  ports:
+    - name: http
+      port: 8001
+      targetPort: http

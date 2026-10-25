@@ -1,0 +1,109 @@
+# Wspólna konfiguracja nie-tajna dla bazy i serwisów.
+# Hasło NIE jest tutaj – trafia do Secret `db-credentials`, który tworzy buildspec.yml
+# (losowe hasło generowane przy pierwszym wdrożeniu, nigdy nie trafia do repozytorium).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aether-config
+data:
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_NAME: aether_tower
+  DB_USER: aether
+  OFFICE_TIMEZONE: Europe/Warsaw
+---
+# Headless Service (clusterIP: None) wymagany przez StatefulSet – daje stabilną nazwę DNS
+# `postgres` wskazującą bezpośrednio na pod `postgres-0`.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  clusterIP: None
+  selector:
+    app: postgres
+  ports:
+    - name: pg
+      port: 5432
+      targetPort: pg
+---
+# PostgreSQL jako StatefulSet z trwałym dyskiem EBS gp3 (volumeClaimTemplates).
+# Po awarii poda (kubectl delete pod postgres-0) Kubernetes odtwarza go z tą samą
+# nazwą i ponownie podpina TEN SAM wolumen – dane przetrwają.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70        # użytkownik `postgres` w obrazie alpine
+        runAsGroup: 70
+        fsGroup: 70          # Kubernetes nadaje grupie 70 prawa zapisu do wolumenu EBS
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          args: ["-c", "max_connections=200"]   # 6 replik HPA x (10+10) połączeń puli < 200
+          ports:
+            - name: pg
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              valueFrom: { configMapKeyRef: { name: aether-config, key: DB_NAME } }
+            - name: POSTGRES_USER
+              valueFrom: { configMapKeyRef: { name: aether-config, key: DB_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+            # Dysk EBS ma w korzeniu katalog lost+found – initdb wymaga pustego katalogu,
+            # dlatego dane trzymamy w podkatalogu.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { memory: 1Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          startupProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 6
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: gp3
+        resources:
+          requests:
+            storage: 10Gi

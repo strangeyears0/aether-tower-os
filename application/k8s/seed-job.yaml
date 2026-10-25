@@ -1,0 +1,56 @@
+# Jednorazowe zasilenie bazy (100 pięter x 150 biurek, 300 użytkowników, rezerwacje na dziś).
+# Odpowiednik usługi `seed` z docker-compose.yml – ten sam obraz i ten sam skrypt.
+#
+# Skrypt scripts/seed.py nie jest w obrazie, więc trafia do ConfigMap `seed-script`
+# (tworzonej przez buildspec.yml poleceniem `kubectl create configmap --from-file`)
+# i jest montowany w /scripts – dokładnie tak jak wolumen ./scripts w compose.
+# seed.py jest idempotentny, więc ponowne uruchomienie przy kolejnym deployu nie duplikuje danych.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: seed
+  labels:
+    app: seed
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: seed
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: seed
+          image: aether-tower/reservation-service
+          command: ["python", "/scripts/seed.py"]
+          env:
+            - name: DB_HOST
+              valueFrom: { configMapKeyRef: { name: aether-config, key: DB_HOST } }
+            - name: DB_PORT
+              valueFrom: { configMapKeyRef: { name: aether-config, key: DB_PORT } }
+            - name: DB_NAME
+              valueFrom: { configMapKeyRef: { name: aether-config, key: DB_NAME } }
+            - name: DB_USER
+              valueFrom: { configMapKeyRef: { name: aether-config, key: DB_USER } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: db-credentials, key: password } }
+            - name: OFFICE_TIMEZONE
+              valueFrom: { configMapKeyRef: { name: aether-config, key: OFFICE_TIMEZONE } }
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - name: seed-script
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: seed-script
+          configMap:
+            name: seed-script

@@ -45,3 +45,18 @@ variable "node_capacity_type" {
   type        = string
   default     = "SPOT"
 }
+
+# ---------------------------------------------------------------------------
+# CI/CD (AWS CodePipeline + CodeBuild)
+# ---------------------------------------------------------------------------
+variable "github_repository_id" {
+  description = "Repozytorium GitHub w formacie właściciel/nazwa (używane przez CodeConnections)"
+  type        = string
+  default     = "strangeyears0/aether-tower-os"
+}
+
+variable "github_branch" {
+  description = "Gałąź, której push uruchamia pipeline (build + deploy na EKS)"
+  type        = string
+  default     = "main"
+}
